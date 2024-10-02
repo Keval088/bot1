@@ -3,21 +3,24 @@ const firefox = require("selenium-webdriver/firefox");
 const userAgentArray = require("./userAgent");
 const url = "https://sh6ewzoig.play.gamezop.com";
 const staticRandomNumber = 27000;
-const { exec } = require('child_process');
+const { PythonShell } = require('python-shell');
+const pythonPath = '/app.py'
+const { randomInt } = require("crypto");
+let driver
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const callPython = (x, y) => {
-    exec(`python3 mouse_click.py ${x} ${y}`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error: ${error.message}`);
-            return;
-        }
-        if (stderr) {
-            console.error(`Stderr: ${stderr}`);
-            return;
-        }
-        console.log(`Output: ${stdout}`);
+const callPython = async (x, y) => {
+    const options = {
+        mode: 'text',
+        pythonOptions: ['-u'],
+        scriptPath: './',
+        args: [parseInt(x), parseInt(y)]
+    };
+
+    await PythonShell.run(pythonPath, options, function (err, results) {
+        if (err) throw console.error('err: -> ', err);;
+        console.log('results: %j', results);
     });
 }
 
@@ -46,11 +49,18 @@ async function clickElement(driver, selector) {
             const randomX = Math.floor(Math.random() * divDimensions.width);
             const randomY = Math.floor(Math.random() * divDimensions.height);
 
-            // Calculate the absolute position
-            const absoluteX = divDimensions.rect.left + randomX;
-            const absoluteY = divDimensions.rect.top + randomY;
+            const screenDimensions = await driver.executeScript(`
+                return {
+                    screenWidth: window.innerWidth,
+                    screenHeight: window.innerHeight
+                };
+            `);
 
-            callPython(absoluteX, absoluteY)
+            // Calculate the absolute position
+            const absoluteX = screenDimensions.screenWidth - divDimensions.rect.left;
+            const absoluteY = screenDimensions.screenHeight - divDimensions.rect.top;
+
+            await callPython(absoluteX, absoluteY)
 
             // Simulate mouse movement and click
             await driver.executeScript(`
@@ -71,10 +81,10 @@ async function clickElement(driver, selector) {
                 div.dispatchEvent(mouseClickEvent);
             `);
 
-            console.log(`Clicked element: ${selector}`);
+            console.info(`Clicked element: :- ${selector}`);
             await delay(1000 + Math.random() * staticRandomNumber);
         } else {
-            console.error(`Element not found: ${selector}`);
+            console.error(`#Element not found: ${selector}`);
         }
     } catch (error) {
     }
@@ -103,11 +113,24 @@ async function clickElementWithMouse(driver, selector) {
             const randomX = Math.floor(Math.random() * divDimensions.width);
             const randomY = Math.floor(Math.random() * divDimensions.height);
 
-            // Calculate the absolute position
-            const absoluteX = divDimensions.rect.left + randomX;
-            const absoluteY = divDimensions.rect.top + randomY;
+            const screenDimensions = await driver.executeScript(`
+                return {
+                    screenWidth: window.innerWidth,
+                    screenHeight: window.innerHeight
+                };
+            `);
 
-            callPython(absoluteX, absoluteY)
+            // Calculate the absolute position
+            const absoluteX = screenDimensions.screenWidth - divDimensions.rect.left;
+            const absoluteY = screenDimensions.screenHeight - divDimensions.rect.top;
+
+            console.info(`divDimensions.rect.left: :- ${divDimensions.rect.left}`);
+            console.info(`divDimensions.rect.top: :- ${divDimensions.rect.top}`);
+
+            console.info(`divDimensions.width: :- ${absoluteX}`);
+            console.info(`divDimensions.height: :- ${absoluteY}`);
+
+            await callPython(absoluteX, absoluteY)
 
             // Simulate mouse movement and click
             await driver.executeScript(`
@@ -128,10 +151,10 @@ async function clickElementWithMouse(driver, selector) {
                 div.dispatchEvent(mouseClickEvent);
             `);
 
-            console.log(`Clicked element: ${selector}`);
+            console.log(`Clicked element: :- ${selector}`);
             await delay(6000 + (Math.random() * staticRandomNumber));
         } else {
-            console.error(`Element not found: ${selector}`);
+            console.error(`#Element not found: ${selector}`);
         }
     } catch (error) {
     }
@@ -139,12 +162,14 @@ async function clickElementWithMouse(driver, selector) {
 
 async function clickRandomTwoCardsAndSelectButton(driver) {
     try {
+        console.info("Select Game Card on First Page");
+
         // Select all card elements
         const cardSelector = '.style_inner_cat_group__E_iG_ .style_card_holder__rwIrg';
         const cards = await driver.executeScript(`return Array.from(document.querySelectorAll('${cardSelector}')).map(card => card.outerHTML);`);
 
         if (cards.length < 2) {
-            console.error("Not enough cards to click.");
+            console.error("# Game Card :- Not enough cards to click.");
             return;
         }
 
@@ -169,10 +194,7 @@ async function clickRandomTwoCardsAndSelectButton(driver) {
         // Click the "Select any 2 Games" button
         await clickElementWithMouse(driver, selectButtonSelector);
         await delay(5000 + (Math.random() * staticRandomNumber));
-        await clickElement(driver, ".skip");
-        await clickElement(driver, "#dismiss-button");
-        await clickElement(driver, "#close-ad-button");
-        await clickElement(driver, "#close_button");
+        await adsCloser(driver);
     } catch (error) {
     }
 }
@@ -183,7 +205,7 @@ async function homePageNavclickRandomButton(driver) {
         const cards = await driver.executeScript(`return Array.from(document.querySelectorAll('${cardSelector}')).map(card => card.outerHTML);`);
 
         if (cards.length < 1) {
-            console.error("Home Nav:- Not enough cards to click.", cards.length);
+            console.error("# Home Nav:- Not enough cards to click.", cards.length);
             return;
         }
 
@@ -191,10 +213,8 @@ async function homePageNavclickRandomButton(driver) {
         await clickElementWithMouse(driver, selectButtonSelector);
         // await goBackPage(driver)
 
-        await clickElement(driver, ".skip");
-        await clickElement(driver, "#dismiss-button");
-        await clickElement(driver, "#close-ad-button");
-        await clickElement(driver, "#close_button");
+        await adsCloser(driver);
+        await popupAdsCloser(driver)
     } catch (error) {
     }
 }
@@ -205,7 +225,7 @@ async function homeCardclickRandomButton(driver) {
         const cards = await driver.executeScript(`return Array.from(document.querySelectorAll('${cardSelector}')).map(card => card.outerHTML);`);
 
         if (cards.length < 1) {
-            console.error("Card:- Not enough cards to click.", cards.length);
+            console.error("# Card:- Not enough cards to click.", cards.length);
             return;
         }
 
@@ -235,11 +255,21 @@ async function clickRandomPositionInDiv(driver, divId, isClass = true) {
             const randomX = Math.floor(Math.random() * divDimensions.width);
             const randomY = Math.floor(Math.random() * divDimensions.height);
 
-            // Calculate the absolute position
-            const absoluteX = divDimensions.rect.left + randomX;
-            const absoluteY = divDimensions.rect.top + randomY;
+            const screenDimensions = await driver.executeScript(`
+                return {
+                    screenWidth: window.innerWidth,
+                    screenHeight: window.innerHeight
+                };
+            `);
 
-            callPython(absoluteX, absoluteY)
+            // Calculate the absolute position
+            const absoluteX = screenDimensions.screenWidth - divDimensions.rect.left;
+            const absoluteY = screenDimensions.screenHeight - divDimensions.rect.top;
+
+            console.info(`divDimensions.rect.left: :- ${divDimensions.rect.left}`);
+            console.info(`divDimensions.rect.top: :- ${divDimensions.rect.top}`);
+
+            await callPython(absoluteX, absoluteY)
 
             // Simulate mouse movement and click
             await driver.executeScript(`
@@ -260,11 +290,11 @@ async function clickRandomPositionInDiv(driver, divId, isClass = true) {
                 div.dispatchEvent(mouseClickEvent);
             `);
 
-            console.log(`Clicked at position: (${absoluteX}, ${absoluteY})`);
-            console.log(`Clicked On position: ${divSelector}`);
+            console.log(`Clicked at position: :- (${absoluteX}, ${absoluteY})`);
+            console.log(`Clicked On position: :- ${divSelector}`);
             await delay(1000 + Math.random() * staticRandomNumber); // Optional delay
         } else {
-            console.error(`Element not found: ${divSelector}`);
+            console.error(`#Element not found: ${divSelector}`);
         }
     } catch (error) {
     }
@@ -303,11 +333,12 @@ async function createDriver() {
     try {
         const randomUserAgent = userAgentArray[Math.floor(Math.random() * userAgentArray.length)];
         // Set the path to your Firefox binary
-        const firefoxBinaryPath = '/home/horizon/snap/firefox/common/.cache/mozilla/firefox/a7ey2oxf.default'; // Update this path
-        const { width, height } = generateRandomScreenSize(randomUserAgent);
-        const options = new firefox.Options().setBinary(firefoxBinaryPath).setPreference('general.useragent.override', randomUserAgent);
+        // const firefoxBinaryPath = '/home/horizon/snap/firefox/common/.cache/mozilla/firefox/a7ey2oxf.default'; // Update this path
+        // const { width, height } = generateRandomScreenSize(randomUserAgent);
+        // const options = new firefox.Options().setBinary(firefoxBinaryPath).setPreference('general.useragent.override', randomUserAgent);
+        const options = new firefox.Options().setPreference('general.useragent.override', randomUserAgent);
         const driver = new Builder().forBrowser('firefox').setFirefoxOptions(options).build();
-        await driver.manage().window().setRect({ width, height });
+        // await driver.manage().window().setRect({ width, height });
         return driver
     } catch (error) {
         console.error("createDriver error:", error);
@@ -337,7 +368,9 @@ async function performMouseMovements(driver) {
             `);
 
             // Optionally simulate a click
-            if (Math.random() > 0.7) { // Adjust probability
+            if (Math.random() > 0.7) {
+                await callPython(x, y)
+                // Adjust probability
                 await driver.executeScript(`
                     const clickEvent = new MouseEvent('click', { clientX: ${x}, clientY: ${y}, bubbles: true });
                     document.dispatchEvent(clickEvent);
@@ -389,94 +422,80 @@ async function goBackPage(driver) {
     }
 
     await delay(4000 + Math.random() * staticRandomNumber);
-    await clickElement(driver, ".skip");
-    await clickElement(driver, "#dismiss-button");
-    await clickElement(driver, "#close-ad-button");
-    await clickElement(driver, "#close_button");
+    await adsCloser(driver);
 }
 
 async function continueLoop(driver) {
-    let count = 0
-    const redomNo = Math.random() * 10;
-    while (6 > count) {
+    while (true) {
         try {
 
-            if (await elementExists(driver, "#ad_position_box")) {
-                if (Math.random() > 0.5) {
-                    await clickRandomPositionInDiv(driver, 'ad_position_box', false);
-                    await goBackPage(driver)
-                } else {
-                    await clickRandomPositionInDiv(driver, 'dismiss-button', false);
-                }
-            }
+            popupAdsCloser(driver)
 
             if ((Math.random() * 10) > 3) { await scrollPage(driver); }
 
-            if ((Math.random() * 10) > 7) { await homePageNavclickRandomButton(driver); }
+            // if ((Math.random() * 10) > 7) { await homePageNavclickRandomButton(driver); }
 
             if ((Math.random() * 10) > 9) { await performMouseMovements(driver); }
 
             if ((Math.random()) > 5) { await performRandomActions(driver); }
 
-            if ((Math.random()) > 5) { await homeCardclickRandomButton(driver); }
+            // if ((Math.random()) > 5) { await homeCardclickRandomButton(driver); }
 
             await clickElement(driver, "#close_button");
             await clickElement(driver, "#close-ad-button");
             await clickElement(driver, "#dismiss-button");
-
-            if (redomNo > Math.random()) {
-                break;
-            }
-            count += 1;
         } catch (error) {
         }
     }
 }
 
+async function popupAdsCloser(driver) {
+    if (await elementExists(driver, "#ad_position_box")) {
+        if (Math.random() > 0.5) {
+            await clickRandomPositionInDiv(driver, 'ad_position_box', false);
+            await goBackPage(driver)
+        } else {
+            await clickRandomPositionInDiv(driver, 'dismiss-button', false);
+        }
+    }
+}
+
+async function adsCloser(driver) {
+    await clickElement(driver, ".btn skip");
+    await clickElement(driver, "#dismiss-button");
+    await clickElement(driver, "#close-ad-button");
+    await clickElement(driver, "#close_button");
+}
+
 async function openBrowser() {
     try {
         console.log("Bot is starting");
-        const driver = await createDriver();
+        driver = await createDriver();
         await driver.get(url);
         await delay(5000 + (Math.random() * 4000));
+        continueLoop(driver);
         console.log("Browser opened");
         if (Math.random() > 5) {
             await clickRandomPositionInDiv(driver, 'style_ad_container');
         }
 
-        if (await elementExists(driver, "#ad_position_box")) {
-            if (Math.random() > 0.5) {
-                await clickRandomPositionInDiv(driver, 'ad_position_box', false);
-                await goBackPage(driver)
-            } else {
-                await clickRandomPositionInDiv(driver, 'dismiss-button', false);
-            }
-        }
-
+        await popupAdsCloser(driver)
         await clickRandomTwoCardsAndSelectButton(driver)
-        await delay(2000 + (Math.random() * 4000));
-
-        if (await elementExists(driver, "#ad_position_box")) {
-            if (Math.random() > 0.5) {
-                await clickRandomPositionInDiv(driver, 'ad_position_box', false);
-                await goBackPage(driver)
-            } else {
-                await clickRandomPositionInDiv(driver, 'dismiss-button', false);
-            }
-        }
-
-        continueLoop(driver);
-
+        delay(2000 + (Math.random() * 4000));
+        await popupAdsCloser(driver)
         await homePageNavclickRandomButton(driver);
         await delay((Math.random() * 2000) + (Math.random() * 2000));
 
-        if (await elementExists(driver, "#ad_position_box")) {
-            if (Math.random() > 0.5) {
-                await clickRandomPositionInDiv(driver, 'ad_position_box', false);
-                await goBackPage(driver)
-            } else {
-                await clickRandomPositionInDiv(driver, 'dismiss-button', false);
-            }
+        popupAdsCloser(driver)
+
+        await delay((Math.random() * 2000) + (Math.random() * 2000));
+
+        for (let i = 0; i < Math.floor(Math.random() * 5); i++) {
+            popupAdsCloser(driver)
+            await homeCardclickRandomButton(driver);
+            await delay((Math.random() * 2000) + (Math.random() * 2000));
+            popupAdsCloser(driver)
+            await delay((Math.random() * 25000) + (Math.random() * 20600));
         }
 
         await delay((Math.random() * 50000) + (Math.random() * 12000));
