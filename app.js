@@ -377,6 +377,10 @@ async function createDriver() {
         options.setPreference('webgl.disabled', true);
         options.setPreference('media.navigator.enabled', false);
         options.setPreference('privacy.resistFingerprinting', true);
+        options.addArguments('--headless=new');
+        options.addArguments('--disable-blink-features=AutomationControlled');
+        options.addArguments('--no-sandbox');
+        options.addArguments('--disable-dev-shm-usage');
         const driver = new Builder().forBrowser('firefox').setFirefoxOptions(options).build();
         await driver.manage().window().setRect({ width: randomScreenElement[0], height: randomScreenElement[1] });
         return driver
