@@ -7,7 +7,6 @@ const staticRandomNumber = 27000;
 const { PythonShell } = require('python-shell');
 const pythonPath = '/app.py'
 const { randomInt } = require("crypto");
-const os = require('os');
 let driver
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -124,23 +123,23 @@ async function clickElementWithMouse(driver, selector) {
             await callPython(absoluteX, absoluteY)
 
             // Simulate mouse movement and click
-            // await driver.executeScript(`
-            //     const mouseMoveEvent = new MouseEvent('mousemove', {
-            //         clientX: ${absoluteX},
-            //         clientY: ${absoluteY},
-            //         bubbles: true,
-            //         cancelable: true
-            //     });
-            //     const mouseClickEvent = new MouseEvent('click', {
-            //         clientX: ${absoluteX},
-            //         clientY: ${absoluteY},
-            //         bubbles: true,
-            //         cancelable: true
-            //     });
-            //     const div = document.querySelector('${selector}');
-            //     div.dispatchEvent(mouseMoveEvent);
-            //     div.dispatchEvent(mouseClickEvent);
-            // `);
+            await driver.executeScript(`
+                const mouseMoveEvent = new MouseEvent('mousemove', {
+                    clientX: ${absoluteX},
+                    clientY: ${absoluteY},
+                    bubbles: true,
+                    cancelable: true
+                });
+                const mouseClickEvent = new MouseEvent('click', {
+                    clientX: ${absoluteX},
+                    clientY: ${absoluteY},
+                    bubbles: true,
+                    cancelable: true
+                });
+                const div = document.querySelector('${selector}');
+                div.dispatchEvent(mouseMoveEvent);
+                div.dispatchEvent(mouseClickEvent);
+            `);
 
             console.log(`Clicked element: :- ${selector}`);
             await delay(6000 + (Math.random() * staticRandomNumber));
@@ -303,24 +302,6 @@ async function scrollPage(driver) {
     }
 }
 
-function getCurrentIP() {
-    const networkInterfaces = os.networkInterfaces();
-    let ipAddress;
-
-    for (const interfaceName in networkInterfaces) {
-        for (const net of networkInterfaces[interfaceName]) {
-            // Check for IPv4 and non-internal addresses
-            if (net.family === 'IPv4' && !net.internal) {
-                ipAddress = net.address;
-                break;
-            }
-        }
-        if (ipAddress) break;
-    }
-
-    return ipAddress || 'No external IP found';
-}
-
 async function createDriver() {
     try {
         const randomUserAgent = userAgentArray[Math.floor(Math.random() * userAgentArray.length)];
@@ -371,9 +352,9 @@ async function createDriver() {
         // Set the path to your Firefox binary
         const firefoxBinaryPath = '/home/horizon/snap/firefox/common/.cache/mozilla/firefox/a7ey2oxf.default'; // Update this path
         // const { width, height } = generateRandomScreenSize(randomUserAgent);
-        const options = new firefox.Options().setBinary(firefoxBinaryPath).setPreference('general.useragent.override', randomUserAgent);
+        // const options = new firefox.Options().setBinary(firefoxBinaryPath).setPreference('general.useragent.override', randomUserAgent);
 
-        // const options = new firefox.Options().setPreference('general.useragent.override', randomUserAgent);
+        const options = new firefox.Options().setPreference('general.useragent.override', randomUserAgent);
         options.setPreference('webgl.disabled', true);
         options.setPreference('media.navigator.enabled', false);
         options.setPreference('privacy.resistFingerprinting', true);
@@ -475,9 +456,9 @@ async function continueLoop(driver) {
 
             popupAdsCloser(driver)
 
-            const dismissButton = await driver.wait(until.elementLocated(By.xpath('//*[@id="dismiss-button"]')), 10000);
-            await driver.wait(until.elementIsVisible(dismissButton), 10000);
-            await dismissButton.click();
+            // const dismissButton = await driver.wait(until.elementLocated(By.xpath('//*[@id="dismiss-button"]')), 10000);
+            // await driver.wait(until.elementIsVisible(dismissButton), 10000);
+            // await dismissButton.click();
 
             if ((Math.random() * 10) > 3) { await scrollPage(driver); }
 
@@ -492,6 +473,7 @@ async function continueLoop(driver) {
             await clickElement(driver, "#close_button");
             await clickElement(driver, "#close-ad-button");
             await clickElement(driver, "#dismiss-button");
+            await clickElement(driver, "#dismiss-button-element");
         } catch (error) {
         }
     }
@@ -513,6 +495,7 @@ async function adsCloser(driver) {
     await clickElement(driver, "#dismiss-button");
     await clickElement(driver, "#close-ad-button");
     await clickElement(driver, "#close_button");
+    await clickElement(driver, "#dismiss-button-element");
 }
 
 async function openBrowser() {
@@ -523,16 +506,11 @@ async function openBrowser() {
         await delay(5000 + (Math.random() * 4000));
         continueLoop(driver);
         console.log("Browser opened");
-        console.log('Current IP Address:', getCurrentIP());
         if (Math.random() > 5) {
             await clickRandomPositionInDiv(driver, 'style_ad_container');
             await delay((Math.random() * 6000) + (Math.random() * staticRandomNumber));
             await goBackPage(driver)
         }
-
-        const dismissButton = await driver.wait(until.elementLocated(By.xpath('//*[@id="dismiss-button"]')), 10000);
-        await driver.wait(until.elementIsVisible(dismissButton), 10000);
-        await dismissButton.click();
 
         await popupAdsCloser(driver)
         await clickRandomTwoCardsAndSelectButton(driver)
